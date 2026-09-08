@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -100,6 +101,7 @@ fun ScannerScreen(
     val scannedProduct by viewModel.scannedProduct.collectAsState()
     val scannedBarcode by viewModel.scannedBarcode.collectAsState()
     val productHistory by viewModel.productHistory.collectAsState()
+    val categories by viewModel.allCategories.collectAsState()
 
     var showManualInputDialog by remember { mutableStateOf(false) }
     var showUpdateMrpDialog by remember { mutableStateOf(false) }
@@ -513,9 +515,14 @@ fun ScannerScreen(
     if (showAddProductDialog) {
         AddEditProductDialog(
             initialBarcode = scannedBarcode ?: "",
+            availableCategories = categories,
+            onAddCategory = { newCat ->
+                viewModel.addCategory(newCat)
+            },
             onDismiss = { showAddProductDialog = false },
             onConfirm = { newProduct ->
                 viewModel.saveProduct(newProduct)
+                Toast.makeText(context, "Product saved! Syncing with Google Sheet...", Toast.LENGTH_SHORT).show()
                 showAddProductDialog = false
             }
         )
@@ -524,9 +531,14 @@ fun ScannerScreen(
     if (showEditProductDialog && scannedProduct != null) {
         AddEditProductDialog(
             productToEdit = scannedProduct,
+            availableCategories = categories,
+            onAddCategory = { newCat ->
+                viewModel.addCategory(newCat)
+            },
             onDismiss = { showEditProductDialog = false },
             onConfirm = { updatedProduct ->
                 viewModel.saveProduct(updatedProduct)
+                Toast.makeText(context, "Product updated! Syncing with Google Sheet...", Toast.LENGTH_SHORT).show()
                 showEditProductDialog = false
             }
         )

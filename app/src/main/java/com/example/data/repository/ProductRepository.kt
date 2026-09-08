@@ -35,8 +35,8 @@ class ProductRepository(
         return mrpHistoryDao.getHistoryForBarcode(barcode.trim())
     }
 
-    suspend fun saveProduct(product: Product, isOffline: Boolean): Long {
-        val syncStatus = if (isOffline) SyncStatus.PENDING_INSERT else SyncStatus.SYNCED
+    suspend fun saveProduct(product: Product, isOffline: Boolean = false): Long {
+        val syncStatus = if (product.id != 0L) SyncStatus.PENDING_UPDATE else SyncStatus.PENDING_INSERT
         val productToSave = product.copy(
             syncStatus = syncStatus,
             lastUpdated = System.currentTimeMillis()
@@ -66,10 +66,10 @@ class ProductRepository(
         reason: String,
         changedBy: String,
         notes: String,
-        isOffline: Boolean
+        isOffline: Boolean = false
     ) {
         val previousMrp = product.currentMrp
-        val syncStatus = if (isOffline) SyncStatus.PENDING_UPDATE else SyncStatus.SYNCED
+        val syncStatus = SyncStatus.PENDING_UPDATE
         val updatedProduct = product.copy(
             currentMrp = newMrp,
             lastUpdated = System.currentTimeMillis(),

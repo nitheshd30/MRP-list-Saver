@@ -1,7 +1,13 @@
 package com.example.util
 
+import androidx.annotation.OptIn
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
+import com.google.mlkit.vision.barcode.BarcodeScanning
+import com.google.mlkit.vision.barcode.common.Barcode
+import com.google.mlkit.vision.common.InputImage
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
 import com.google.zxing.DecodeHintType
@@ -10,11 +16,31 @@ import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.nio.ByteBuffer
 
+/**
+ * High-performance, low-latency barcode analyzer powered by Google ML Kit.
+ * Specifically configured for instantaneous detection of EAN-13, EAN-8, UPC-A, UPC-E,
+ * Code-128, Code-39, and QR Codes, with full rotation awareness for portrait camera orientations.
+ */
 class BarcodeAnalyzer(
     private val onBarcodeScanned: (String) -> Unit
 ) : ImageAnalysis.Analyzer {
 
-    private val reader = MultiFormatReader().apply {
+    // Configure ML Kit specifically for retail product barcodes
+    private val options = BarcodeScannerOptions.Builder()
+        .setBarcodeFormats(
+            Barcode.FORMAT_EAN_13,
+            Barcode.FORMAT_EAN_8,
+            Barcode.FORMAT_UPC_A,
+            Barcode.FORMAT_UPC_E,
+            Barcode.FORMAT_CODE_128,
+            Barcode.FORMAT_CODE_39,
+            Barcode.FORMAT_QR_CODE
+        )
+        .build()
+
+    private val mlKitScanner = BarcodeScanning.getClient(options)
+
+    private val zxingReader = MultiFormatReader().apply {
         val hints = mapOf(
             DecodeHintType.POSSIBLE_FORMATS to listOf(
                 BarcodeFormat.EAN_13,
@@ -33,22 +59,62 @@ class BarcodeAnalyzer(
     private var lastScannedCode = ""
     private var lastScannedTimestamp = 0L
 
+    @OptIn(ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
         val currentTime = System.currentTimeMillis()
-        // Prevent flood: wait at least 1200ms before scanning the exact same barcode again
-        val planes = imageProxy.planes
-        if (planes.isNotEmpty()) {
-            val buffer = planes[0].buffer
-            val bytes = buffer.toByteArray()
-            val width = imageProxy.width
-            val height = imageProxy.height
+        val mediaImage = imageProxy.image
 
-            try {
+        if (mediaImage != null) {
+            val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+            val inputImage = InputImage.fromMediaImage(mediaImage, rotationDegrees)
+
+            mlKitScanner.process(inputImage)
+                .addOnSuccessListener { barcodes ->
+                    var detected = false
+                    for (barcode in barcodes) {
+                        val raw = barcode.rawValue?.trim() ?: barcode.displayValue?.trim()
+                        if (!raw.isNullOrBlank()) {
+                            if (raw != lastScannedCode || (currentTime - lastScannedTimestamp > 1500)) {
+                                lastScannedCode = raw
+                                lastScannedTimestamp = currentTime
+                                onBarcodeScanned(raw)
+                            }
+                            detected = true
+                            break
+                        }
+                    }
+
+                    if (!detected) {
+                        // If ML Kit didn't detect on this specific frame, try ZXing fallback
+                        decodeWithZxing(imageProxy, currentTime)
+                    }
+                }
+                .addOnFailureListener {
+                    decodeWithZxing(imageProxy, currentTime)
+                }
+                .addOnCompleteListener {
+                    imageProxy.close()
+                }
+        } else {
+            decodeWithZxing(imageProxy, currentTime)
+            imageProxy.close()
+        }
+    }
+
+    private fun decodeWithZxing(imageProxy: ImageProxy, currentTime: Long) {
+        try {
+            val planes = imageProxy.planes
+            if (planes.isNotEmpty()) {
+                val buffer = planes[0].buffer
+                val bytes = buffer.toByteArray()
+                val width = imageProxy.width
+                val height = imageProxy.height
+
                 val source = PlanarYUVLuminanceSource(
                     bytes, width, height, 0, 0, width, height, false
                 )
                 val binaryBitmap = BinaryBitmap(HybridBinarizer(source))
-                val result = reader.decodeWithState(binaryBitmap)
+                val result = zxingReader.decodeWithState(binaryBitmap)
                 val code = result.text.trim()
 
                 if (code.isNotBlank() && (code != lastScannedCode || (currentTime - lastScannedTimestamp > 1500))) {
@@ -56,13 +122,12 @@ class BarcodeAnalyzer(
                     lastScannedTimestamp = currentTime
                     onBarcodeScanned(code)
                 }
-            } catch (_: Exception) {
-                // Not found in this frame, normal when aiming camera
-            } finally {
-                reader.reset()
             }
+        } catch (_: Exception) {
+            // Frame did not contain a readable barcode
+        } finally {
+            zxingReader.reset()
         }
-        imageProxy.close()
     }
 
     private fun ByteBuffer.toByteArray(): ByteArray {

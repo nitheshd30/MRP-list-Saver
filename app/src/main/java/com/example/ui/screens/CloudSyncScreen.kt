@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.repository.SyncRepository
 import com.example.data.repository.SyncResult
 import com.example.ui.components.Card3D
+import com.example.ui.components.NodeCard3D
 import com.example.ui.theme.AmberGold
 import com.example.ui.theme.CoralRed
 import com.example.ui.theme.DarkCanvas
@@ -78,6 +79,8 @@ import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceBorder
 import com.example.ui.theme.LaserCyan
 import com.example.ui.theme.NeonEmerald
+import com.example.ui.theme.NodeGreen
+import com.example.ui.theme.NodeLime
 import com.example.ui.viewmodel.MrpViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -103,6 +106,8 @@ fun CloudSyncScreen(
         mutableStateOf(viewModel.syncRepository.isAutoSyncEnabled())
     }
     var syncFeedback by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
+    var testResult by remember { mutableStateOf<Pair<Boolean, String>?>(null) }
 
     val dateFormat = remember { SimpleDateFormat("dd MMM yyyy • HH:mm:ss", Locale.getDefault()) }
 
@@ -156,10 +161,11 @@ fun CloudSyncScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // 3D Connectivity & Offline Control Card
-                    Card3D(
+                    // 3D Node Connectivity & Offline Control Card
+                    NodeCard3D(
                         modifier = Modifier.fillMaxWidth(),
-                        elevation = 8.dp
+                        elevation = 8.dp,
+                        glowAccent = if (isOnline) NodeGreen else CoralRed
                     ) {
                         Column(
                             modifier = Modifier
@@ -392,6 +398,35 @@ fun CloudSyncScreen(
                                     Text("Save URL", fontWeight = FontWeight.Bold)
                                 }
 
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                OutlinedButton(
+                                    onClick = {
+                                        viewModel.saveGoogleSheetUrl(sheetUrlInput.trim())
+                                        isTestingConnection = true
+                                        testResult = null
+                                        viewModel.testGoogleSheetConnection { success, message ->
+                                            isTestingConnection = false
+                                            testResult = Pair(success, message)
+                                        }
+                                    },
+                                    enabled = !isTestingConnection && sheetUrlInput.isNotBlank(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, if (sheetUrlInput.isNotBlank()) LaserCyan else Color(0x33FFFFFF))
+                                ) {
+                                    if (isTestingConnection) {
+                                        CircularProgressIndicator(
+                                            color = LaserCyan,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Testing...", fontSize = 12.sp, color = LaserCyan)
+                                    } else {
+                                        Text("Test", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if (sheetUrlInput.isNotBlank()) LaserCyan else Color.Gray)
+                                    }
+                                }
+
                                 Spacer(modifier = Modifier.weight(1f))
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -408,6 +443,37 @@ fun CloudSyncScreen(
                                             checkedTrackColor = Color(0x3306B6D4)
                                         )
                                     )
+                                }
+                            }
+
+                            testResult?.let { result ->
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (result.first) Color(0x2210B981) else Color(0x22EF4444),
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        1.dp,
+                                        if (result.first) Color(0xFF10B981) else Color(0xFFEF4444)
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = if (result.first) Icons.Default.CheckCircle else Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = if (result.first) Color(0xFF10B981) else Color(0xFFEF4444),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = result.second,
+                                            color = if (result.first) Color(0xFFD1FAE5) else Color(0xFFFEE2E2),
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                         }

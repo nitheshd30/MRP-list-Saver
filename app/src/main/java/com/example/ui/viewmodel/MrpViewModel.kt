@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
 import com.example.data.model.MrpHistory
 import com.example.data.model.Product
+import com.example.data.repository.CategoryRepository
 import com.example.data.repository.ProductRepository
 import com.example.data.repository.SyncRepository
 import com.example.data.repository.SyncResult
@@ -26,6 +27,7 @@ class MrpViewModel(application: Application) : AndroidViewModel(application) {
 
     private val database = AppDatabase.getDatabase(application, viewModelScope)
     private val productRepository = ProductRepository(database.productDao(), database.mrpHistoryDao())
+    val categoryRepository = CategoryRepository(application, database.productDao())
     val syncRepository = SyncRepository(application, productRepository)
     val networkMonitor = NetworkMonitor(application)
 
@@ -42,7 +44,7 @@ class MrpViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
-    val allCategories: StateFlow<List<String>> = productRepository.allCategories
+    val allCategories: StateFlow<List<String>> = categoryRepository.allCategories
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val rawProducts: StateFlow<List<Product>> = productRepository.allProducts
@@ -100,6 +102,21 @@ class MrpViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSelectedCategory(category: String?) {
         _selectedCategory.value = category
+    }
+
+    fun addCategory(name: String): Boolean {
+        val success = categoryRepository.addCategory(name)
+        if (success) {
+            _selectedCategory.value = name.trim()
+        }
+        return success
+    }
+
+    fun removeCategory(name: String) {
+        categoryRepository.removeCategory(name)
+        if (_selectedCategory.value == name) {
+            _selectedCategory.value = null
+        }
     }
 
     fun onBarcodeScanned(barcode: String) {
@@ -197,6 +214,13 @@ class MrpViewModel(application: Application) : AndroidViewModel(application) {
 
     fun saveGoogleSheetUrl(url: String) {
         syncRepository.saveGoogleSheetUrl(url)
+    }
+
+    fun testGoogleSheetConnection(onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val res = syncRepository.testConnection()
+            onResult(res.first, res.second)
+        }
     }
 
     // Export helpers

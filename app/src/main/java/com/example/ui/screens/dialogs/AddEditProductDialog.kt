@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,9 +25,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
@@ -70,6 +75,8 @@ import java.util.Locale
 fun AddEditProductDialog(
     initialBarcode: String = "",
     productToEdit: Product? = null,
+    availableCategories: List<String> = emptyList(),
+    onAddCategory: ((String) -> Unit)? = null,
     onDismiss: () -> Unit,
     onConfirm: (Product) -> Unit
 ) {
@@ -78,7 +85,7 @@ fun AddEditProductDialog(
     var barcode by remember { mutableStateOf(productToEdit?.barcode ?: initialBarcode) }
     var sku by remember { mutableStateOf(productToEdit?.sku ?: "") }
     var name by remember { mutableStateOf(productToEdit?.name ?: "") }
-    var category by remember { mutableStateOf(productToEdit?.category ?: "Grocery") }
+    var category by remember { mutableStateOf(productToEdit?.category ?: "") }
     var unit by remember { mutableStateOf(productToEdit?.unit ?: "1 Pc") }
     var mrpText by remember {
         mutableStateOf(if (productToEdit != null) String.format(Locale.US, "%.2f", productToEdit.currentMrp) else "")
@@ -90,6 +97,17 @@ fun AddEditProductDialog(
     var imageUriString by remember { mutableStateOf(productToEdit?.imageUri) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showBarcodeScanner by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
+
+    val categoriesList = remember(availableCategories, category) {
+        val set = linkedSetOf<String>()
+        if (category.isNotBlank()) set.add(category)
+        set.addAll(availableCategories)
+        if (set.isEmpty()) {
+            set.addAll(listOf("Grocery", "Dairy", "Beverages", "Snacks", "Bakery", "Personal Care", "Household", "General"))
+        }
+        set.toList()
+    }
 
     // Android Photo Picker
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -294,35 +312,168 @@ fun AddEditProductDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Mandatory Category Selector Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = if (category.isBlank() && errorMessage != null) Color(0x22EF4444) else Color(0xFF0B132B),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (category.isBlank() && errorMessage != null) CoralRed else DarkSurfaceBorder,
+                            RoundedCornerShape(12.dp)
+                        )
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Category,
+                            contentDescription = null,
+                            tint = if (category.isBlank() && errorMessage != null) CoralRed else LaserCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "CHOOSE CATEGORY *",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (category.isBlank() && errorMessage != null) CoralRed else LaserCyan,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        if (category.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = Color(0x2606B6D4)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = LaserCyan,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = category,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = LaserCyan
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "Required • Please Select",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CoralRed
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Horizontal list of categories + "+ Add Category" button
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Quick Add Category button
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, LaserCyan),
+                            modifier = Modifier.clickable { showAddCategoryDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Category",
+                                    tint = LaserCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "+ Add Category",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LaserCyan
+                                )
+                            }
+                        }
+
+                        // Selectable categories chips
+                        for (cat in categoriesList) {
+                            val isSelected = category.equals(cat, ignoreCase = true)
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) LaserCyan else Color(0xFF1E293B),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) LaserCyan else DarkSurfaceBorder
+                                ),
+                                modifier = Modifier.clickable {
+                                    category = cat
+                                    errorMessage = null
+                                }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    Text(
+                                        text = cat,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.Black else Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Row: Category & Unit
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = category,
-                        onValueChange = { category = it },
-                        label = { Text("Category") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LaserCyan,
-                            unfocusedBorderColor = DarkSurfaceBorder
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = unit,
-                        onValueChange = { unit = it },
-                        label = { Text("Pack / Unit") },
-                        placeholder = { Text("500g, 1L") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = LaserCyan,
-                            unfocusedBorderColor = DarkSurfaceBorder
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                // Pack / Unit field
+                OutlinedTextField(
+                    value = unit,
+                    onValueChange = { unit = it },
+                    label = { Text("Pack / Unit (e.g. 500g, 1L, 1 Pc)") },
+                    placeholder = { Text("500g, 1L, 1 Pc") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = LaserCyan,
+                        unfocusedBorderColor = DarkSurfaceBorder
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -388,12 +539,40 @@ fun AddEditProductDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Cloud Sheet Sync Notice
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFF0F172A),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x3306B6D4)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = null,
+                            tint = LaserCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Auto-syncs entered product with Google Sheet",
+                            fontSize = 11.sp,
+                            color = Color(0xFFCBD5E1)
+                        )
+                    }
+                }
+
                 if (errorMessage != null) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(text = errorMessage ?: "", color = CoralRed, fontSize = 12.sp)
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Actions
                 Row(modifier = Modifier.fillMaxWidth()) {
@@ -417,6 +596,10 @@ fun AddEditProductDialog(
                                 errorMessage = "Product name is required"
                                 return@Button
                             }
+                            if (category.isBlank()) {
+                                errorMessage = "Please choose or add a category for this product"
+                                return@Button
+                            }
                             val mrpVal = mrpText.toDoubleOrNull()
                             if (mrpVal == null || mrpVal <= 0.0) {
                                 errorMessage = "Enter a valid MRP price"
@@ -428,7 +611,7 @@ fun AddEditProductDialog(
                                 barcode = barcode.trim(),
                                 sku = sku.trim(),
                                 name = name.trim(),
-                                category = category.ifBlank { "General" }.trim(),
+                                category = category.trim(),
                                 unit = unit.ifBlank { "1 Pc" }.trim(),
                                 currentMrp = mrpVal,
                                 costPrice = costPriceText.toDoubleOrNull() ?: 0.0,
@@ -450,5 +633,18 @@ fun AddEditProductDialog(
                 }
             }
         }
+    }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            existingCategories = categoriesList,
+            onDismiss = { showAddCategoryDialog = false },
+            onCategoryAdded = { newCat ->
+                onAddCategory?.invoke(newCat)
+                category = newCat
+                errorMessage = null
+                showAddCategoryDialog = false
+            }
+        )
     }
 }

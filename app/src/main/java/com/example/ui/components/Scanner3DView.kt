@@ -70,6 +70,9 @@ import androidx.core.content.ContextCompat
 import com.example.ui.theme.DarkCanvas
 import com.example.ui.theme.LaserCyan
 import com.example.ui.theme.LaserCyanGlow
+import com.example.ui.theme.NodeGreen
+import com.example.ui.theme.NodeGreenGlow
+import com.example.ui.theme.NodeLime
 import com.example.util.BarcodeAnalyzer
 import java.util.concurrent.Executors
 
@@ -110,6 +113,21 @@ fun Scanner3DView(
             factory = { ctx ->
                 val previewView = PreviewView(ctx).apply {
                     scaleType = PreviewView.ScaleType.FILL_CENTER
+                    setOnTouchListener { v, event ->
+                        if (event.action == android.view.MotionEvent.ACTION_UP) {
+                            try {
+                                val factory = meteringPointFactory
+                                val point = factory.createPoint(event.x, event.y)
+                                val action = androidx.camera.core.FocusMeteringAction.Builder(
+                                    point,
+                                    androidx.camera.core.FocusMeteringAction.FLAG_AF or androidx.camera.core.FocusMeteringAction.FLAG_AE
+                                ).build()
+                                camera?.cameraControl?.startFocusAndMetering(action)
+                                v.performClick()
+                            } catch (_: Exception) {}
+                        }
+                        true
+                    }
                 }
                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                 cameraProviderFuture.addListener({
@@ -185,19 +203,19 @@ fun Scanner3DView(
                 size = Size(canvasWidth - right, scanBoxHeight)
             )
 
-            // Scanning box border
+            // Scanning box border with Node Green neon glow
             drawRoundRect(
-                color = Color(0x3306B6D4),
+                color = NodeGreen.copy(alpha = 0.45f),
                 topLeft = Offset(left, top),
                 size = Size(scanBoxWidth, scanBoxHeight),
                 cornerRadius = CornerRadius(16f, 16f),
                 style = Stroke(width = 2f)
             )
 
-            // 4 Corner 3D Targeting Brackets
+            // 4 Corner 3D Targeting Brackets in Node Lime
             val bracketLen = 36f
             val bracketStroke = 5f
-            val bracketColor = LaserCyanGlow
+            val bracketColor = NodeLime
 
             // Top-Left
             drawLine(bracketColor, Offset(left, top + bracketLen), Offset(left, top), bracketStroke)
@@ -215,14 +233,14 @@ fun Scanner3DView(
             drawLine(bracketColor, Offset(right - bracketLen, bottom), Offset(right, bottom), bracketStroke)
             drawLine(bracketColor, Offset(right, bottom), Offset(right, bottom - bracketLen), bracketStroke)
 
-            // Animated 3D Laser Plane
+            // Animated 3D Laser Plane (Node Lime & Emerald glow)
             val laserY = top + (scanBoxHeight * laserProgress)
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0x0006B6D4),
-                        Color(0x3306B6D4),
-                        LaserCyan
+                        Color(0x0068A063),
+                        Color(0x3368A063),
+                        NodeGreen
                     ),
                     startY = laserY - 35f,
                     endY = laserY
@@ -234,7 +252,7 @@ fun Scanner3DView(
                 color = Color.White,
                 start = Offset(left + 6f, laserY),
                 end = Offset(right - 6f, laserY),
-                strokeWidth = 3f
+                strokeWidth = 3.5f
             )
         }
 
@@ -246,9 +264,9 @@ fun Scanner3DView(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = Color(0xCC0F172A),
+                color = Color(0xCC121B14),
                 shape = RoundedCornerShape(20.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x4D06B6D4))
+                border = androidx.compose.foundation.BorderStroke(1.dp, NodeGreen.copy(alpha = 0.5f))
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -257,12 +275,12 @@ fun Scanner3DView(
                     Icon(
                         imageVector = Icons.Default.QrCodeScanner,
                         contentDescription = "Scanner",
-                        tint = LaserCyan,
+                        tint = NodeLime,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "3D Barcode Laser Scanner",
+                        text = "3D Node Scanner Engine",
                         color = Color.White,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -281,13 +299,13 @@ fun Scanner3DView(
                 },
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(Color(0xCC0F172A))
-                    .border(1.dp, if (isTorchOn) LaserCyan else Color(0x33FFFFFF), CircleShape)
+                    .background(Color(0xCC121B14))
+                    .border(1.dp, if (isTorchOn) NodeLime else Color(0x33FFFFFF), CircleShape)
             ) {
                 Icon(
                     imageVector = if (isTorchOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
                     contentDescription = "Toggle Flash",
-                    tint = if (isTorchOn) LaserCyan else Color.White
+                    tint = if (isTorchOn) NodeLime else Color.White
                 )
             }
         }
@@ -312,17 +330,17 @@ fun Scanner3DView(
             Button(
                 onClick = onManualInputClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xCC1E293B),
+                    containerColor = Color(0xDD121B14),
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x3306B6D4)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, NodeGreen.copy(alpha = 0.5f)),
                 modifier = Modifier.height(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Keyboard,
                     contentDescription = "Manual Code",
-                    tint = LaserCyan,
+                    tint = NodeLime,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))

@@ -59,6 +59,9 @@ import com.example.ui.theme.CoralRed
 import com.example.ui.theme.DarkCanvas
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.NodeGreen
+import com.example.ui.theme.NodeGreenGlow
+import com.example.ui.theme.NodeLime
 import com.example.ui.viewmodel.MrpViewModel
 
 class MainActivity : ComponentActivity() {
@@ -148,15 +151,15 @@ fun Fluid3DBottomNav(
                 width = 1.2.dp,
                 brush = Brush.linearGradient(
                     colors = listOf(
-                        Color(0x4DFFFFFF),
-                        Color(0x3306B6D4),
+                        NodeGreen.copy(alpha = 0.5f),
+                        NodeGreenGlow.copy(alpha = 0.25f),
                         Color(0x1A000000)
                     )
                 )
             ),
             modifier = Modifier
                 .fillMaxWidth()
-                .shadow(12.dp, RoundedCornerShape(24.dp))
+                .shadow(12.dp, RoundedCornerShape(24.dp), spotColor = NodeGreen.copy(alpha = 0.3f))
         ) {
             Row(
                 modifier = Modifier
@@ -176,8 +179,8 @@ fun Fluid3DBottomNav(
                                 if (isSelected) {
                                     Brush.linearGradient(
                                         colors = listOf(
-                                            Color(0x3306B6D4),
-                                            Color(0x1AF59E0B)
+                                            NodeGreen.copy(alpha = 0.28f),
+                                            Color(0x1A83CD29)
                                         )
                                     )
                                 } else {
@@ -208,7 +211,7 @@ fun Fluid3DBottomNav(
                                     Icon(
                                         imageVector = item.icon,
                                         contentDescription = item.label,
-                                        tint = if (isSelected) AmberGold else Color(0xFF64748B),
+                                        tint = if (isSelected) NodeLime else Color(0xFF64748B),
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -216,7 +219,7 @@ fun Fluid3DBottomNav(
                                 Icon(
                                     imageVector = item.icon,
                                     contentDescription = item.label,
-                                    tint = if (isSelected) AmberGold else Color(0xFF64748B),
+                                    tint = if (isSelected) NodeLime else Color(0xFF64748B),
                                     modifier = Modifier.size(22.dp)
                                 )
                             }

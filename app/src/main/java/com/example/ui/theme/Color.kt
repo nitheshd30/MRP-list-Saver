@@ -17,6 +17,13 @@ val NeonEmerald = Color(0xFF10B981)
 val CoralRed = Color(0xFFEF4444)
 val SoftIndigo = Color(0xFF6366F1)
 
+// Node.js 3D Aesthetics
+val NodeGreen = Color(0xFF68A063)
+val NodeGreenGlow = Color(0xFF83CD29)
+val NodeLime = Color(0xFF33CC33)
+val NodeDarkBg = Color(0xFF121B14)
+val NodeCharcoal = Color(0xFF1E281F)
+
 // Text tokens
 val TextPrimary = Color(0xFFF8FAFC)
 val TextSecondary = Color(0xFF94A3B8)

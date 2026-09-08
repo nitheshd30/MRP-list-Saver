@@ -6,7 +6,6 @@ import com.example.data.model.MrpHistory
 import com.example.data.model.Product
 import com.example.data.model.SyncStatus
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,8 +34,11 @@ class SyncRepository(
         context.getSharedPreferences("mrp_sync_prefs", Context.MODE_PRIVATE)
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(25, TimeUnit.SECONDS)
+        .readTimeout(25, TimeUnit.SECONDS)
+        .writeTimeout(25, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     private val _isSyncing = MutableStateFlow(false)
@@ -60,46 +62,54 @@ class SyncRepository(
         prefs.edit().putBoolean(KEY_AUTO_SYNC, enabled).apply()
     }
 
+    suspend fun testConnection(): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        val sheetUrl = getGoogleSheetUrl()
+        if (sheetUrl.isBlank()) {
+            return@withContext Pair(false, "Please paste your Google Apps Script Web App URL first.")
+        }
+        if (!sheetUrl.startsWith("http://") && !sheetUrl.startsWith("https://")) {
+            return@withContext Pair(false, "Invalid URL: Must start with https://")
+        }
+
+        try {
+            val request = Request.Builder()
+                .url(sheetUrl)
+                .get()
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful || response.code in 200..399) {
+                Pair(true, "Successfully connected to Google Sheet Webhook!")
+            } else {
+                Pair(false, "HTTP ${response.code}: ${response.message}")
+            }
+        } catch (e: Exception) {
+            Pair(false, "Connection error: ${e.localizedMessage ?: "Check your URL or internet connection"}")
+        }
+    }
+
     suspend fun performSync(): SyncResult = withContext(Dispatchers.IO) {
         if (_isSyncing.value) {
             return@withContext SyncResult(false, "Sync already in progress")
         }
 
-        _isSyncing.value = true
         val sheetUrl = getGoogleSheetUrl()
+        val pendingProducts = productRepository.getPendingSyncProducts()
+        val pendingHistory = productRepository.getPendingSyncHistory()
+
+        if (sheetUrl.isBlank()) {
+            val msg = if (pendingProducts.isNotEmpty()) {
+                "${pendingProducts.size} product(s) saved locally. Add Google Sheet Webhook in Sync tab to auto-save to cloud."
+            } else {
+                "Google Sheet Webhook URL not configured."
+            }
+            _lastSyncMessage.value = msg
+            return@withContext SyncResult(false, msg)
+        }
+
+        _isSyncing.value = true
 
         try {
-            val pendingProducts = productRepository.getPendingSyncProducts()
-            val pendingHistory = productRepository.getPendingSyncHistory()
-
-            if (sheetUrl.isBlank()) {
-                // Cloud Sync simulation mode for testing when user has not yet configured a webhook
-                delay(1200) // Realistic network delay
-                for (p in pendingProducts) {
-                    productRepository.markProductSynced(p.id, "ROW-${System.currentTimeMillis() % 10000}")
-                }
-                for (h in pendingHistory) {
-                    productRepository.markHistorySynced(h.id)
-                }
-
-                val now = System.currentTimeMillis()
-                _lastSyncTime.value = now
-                val msg = if (pendingProducts.isEmpty() && pendingHistory.isEmpty()) {
-                    "Cloud database up to date (Demo mode)"
-                } else {
-                    "Synced ${pendingProducts.size} products & ${pendingHistory.size} MRP revisions to Cloud (Demo mode)"
-                }
-                _lastSyncMessage.value = msg
-                prefs.edit().putLong(KEY_LAST_SYNC_TIME, now).putString(KEY_LAST_SYNC_MSG, msg).apply()
-
-                return@withContext SyncResult(
-                    isSuccess = true,
-                    message = msg,
-                    pushedProducts = pendingProducts.size,
-                    pushedHistory = pendingHistory.size
-                )
-            }
-
             // Real Google Apps Script / Sheet Webhook execution
             val payload = JSONObject().apply {
                 put("action", "sync")
@@ -148,7 +158,7 @@ class SyncRepository(
                 .build()
 
             val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
+            if (response.isSuccessful || response.code in 200..399) {
                 val responseBody = response.body?.string().orEmpty()
                 val jsonResponse = runCatching { JSONObject(responseBody) }.getOrNull()
 
@@ -160,7 +170,7 @@ class SyncRepository(
                     productRepository.markHistorySynced(h.id)
                 }
 
-                // Check if remote had any new products to pull
+                // Check if remote had any products to pull
                 var pulledCount = 0
                 if (jsonResponse != null && jsonResponse.has("remoteProducts")) {
                     val remoteProds = jsonResponse.getJSONArray("remoteProducts")
@@ -191,7 +201,11 @@ class SyncRepository(
 
                 val now = System.currentTimeMillis()
                 _lastSyncTime.value = now
-                val msg = "Synced with Google Sheet (${pendingProducts.size} sent, $pulledCount pulled)"
+                val msg = if (pendingProducts.isEmpty() && pendingHistory.isEmpty()) {
+                    "Google Sheet is up to date"
+                } else {
+                    "Saved to Google Sheet (${pendingProducts.size} products, ${pendingHistory.size} MRP revisions)"
+                }
                 _lastSyncMessage.value = msg
                 prefs.edit().putLong(KEY_LAST_SYNC_TIME, now).putString(KEY_LAST_SYNC_MSG, msg).apply()
 
@@ -223,31 +237,81 @@ class SyncRepository(
         private const val KEY_AUTO_SYNC = "auto_sync_enabled"
 
         val GOOGLE_APPS_SCRIPT_TEMPLATE = """
-// --- Paste this in Google Sheet -> Extensions -> Apps Script ---
+// ============================================================================
+// Google Sheet Apps Script for Retail MRP & Barcode Manager
+// ============================================================================
+// INSTRUCTIONS:
+// 1. Open your Google Sheet
+// 2. Click Extensions > Apps Script
+// 3. Delete existing code and paste this entire file
+// 4. Click 'Deploy' > 'New deployment'
+// 5. Select type: 'Web app'
+// 6. Execute as: 'Me'
+// 7. Who has access: 'Anyone'
+// 8. Click 'Deploy', authorize, and copy the Web App URL into the app's Sync tab!
+// ============================================================================
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    status: "ok",
+    message: "Google Sheet Webhook is active and connected!"
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     
-    // Sheet 1: MRP Catalog
+    // Sheet 1: MRP_Catalog
     var catalogSheet = ss.getSheetByName("MRP_Catalog") || ss.insertSheet("MRP_Catalog");
     if (catalogSheet.getLastRow() === 0) {
-      catalogSheet.appendRow(["Barcode", "SKU", "Product Name", "Category", "Unit", "Current MRP", "Cost Price", "Last Updated", "Notes"]);
+      catalogSheet.appendRow([
+        "Barcode", "SKU", "Product Name", "Category", "Unit", 
+        "Current MRP", "Cost Price", "Last Updated", "Notes"
+      ]);
+      catalogSheet.getRange("A1:I1").setFontWeight("bold").setBackground("#0F172A").setFontColor("#FFFFFF");
     }
     
-    // Sheet 2: MRP Update History Log
+    // Sheet 2: MRP_History
     var historySheet = ss.getSheetByName("MRP_History") || ss.insertSheet("MRP_History");
     if (historySheet.getLastRow() === 0) {
-      historySheet.appendRow(["Timestamp", "Barcode", "Previous MRP", "New MRP", "Difference", "Reason", "Updated By", "Notes"]);
+      historySheet.appendRow([
+        "Timestamp", "Barcode", "Previous MRP", "New MRP", 
+        "Difference", "Reason", "Updated By", "Notes"
+      ]);
+      historySheet.getRange("A1:H1").setFontWeight("bold").setBackground("#0F172A").setFontColor("#FFFFFF");
     }
     
-    // Process products
+    // Process products (upsert by barcode)
     if (data.products && data.products.length > 0) {
+      var dataRange = catalogSheet.getDataRange();
+      var values = dataRange.getValues();
+      var barcodeCol = 0; // Column A
+      
       for (var i = 0; i < data.products.length; i++) {
         var p = data.products[i];
-        catalogSheet.appendRow([
-          p.barcode, p.sku, p.name, p.category, p.unit, p.currentMrp, p.costPrice, new Date(p.lastUpdated), p.notes
-        ]);
+        var foundRow = -1;
+        
+        for (var r = 1; r < values.length; r++) {
+          if (values[r][barcodeCol] && values[r][barcodeCol].toString().trim() === p.barcode.toString().trim()) {
+            foundRow = r + 1;
+            break;
+          }
+        }
+        
+        var dateFormatted = new Date(p.lastUpdated).toLocaleString();
+        var rowData = [
+          p.barcode, p.sku, p.name, p.category, p.unit, 
+          p.currentMrp, p.costPrice, dateFormatted, p.notes
+        ];
+        
+        if (foundRow > 0) {
+          catalogSheet.getRange(foundRow, 1, 1, rowData.length).setValues([rowData]);
+        } else {
+          catalogSheet.appendRow(rowData);
+          values.push(rowData); // Keep in-memory cache updated
+        }
       }
     }
     
@@ -257,14 +321,21 @@ function doPost(e) {
         var h = data.history[j];
         var diff = (h.newMrp - h.previousMrp).toFixed(2);
         historySheet.appendRow([
-          new Date(h.changeDate), h.barcode, h.previousMrp, h.newMrp, diff, h.reason, h.changedBy, h.notes
+          new Date(h.changeDate).toLocaleString(),
+          h.barcode,
+          h.previousMrp,
+          h.newMrp,
+          diff,
+          h.reason,
+          h.changedBy,
+          h.notes
         ]);
       }
     }
     
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
-      message: "Data synced successfully to Google Sheet"
+      message: "Data saved successfully to Google Sheet"
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({

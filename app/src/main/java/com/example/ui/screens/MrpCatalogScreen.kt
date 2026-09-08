@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
@@ -79,6 +80,9 @@ import com.example.data.model.SyncStatus
 import com.example.ui.components.BarcodeScannerDialog
 import com.example.ui.components.Card3D
 import com.example.ui.components.FlipCard3D
+import com.example.ui.components.Node3DAnimatedBanner
+import com.example.ui.components.NodeFlipCard3D
+import com.example.ui.screens.dialogs.AddCategoryDialog
 import com.example.ui.screens.dialogs.AddEditProductDialog
 import com.example.ui.screens.dialogs.UpdateMrpDialog
 import com.example.ui.theme.AmberGold
@@ -88,6 +92,8 @@ import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceBorder
 import com.example.ui.theme.LaserCyan
 import com.example.ui.theme.NeonEmerald
+import com.example.ui.theme.NodeGreen
+import com.example.ui.theme.NodeLime
 import com.example.ui.viewmodel.MrpViewModel
 import com.example.util.CsvExportManager
 import com.example.util.PdfExportManager
@@ -121,6 +127,7 @@ fun MrpCatalogScreen(
     var productToDelete by remember { mutableStateOf<Product?>(null) }
     var showSearchBarcodeScanner by remember { mutableStateOf(false) }
     var showExportMenu by remember { mutableStateOf(false) }
+    var showAddCategoryDialog by remember { mutableStateOf(false) }
 
     if (showSearchBarcodeScanner) {
         BarcodeScannerDialog(
@@ -235,6 +242,14 @@ fun MrpCatalogScreen(
                                 modifier = Modifier.background(DarkSurface)
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text("Add New Category", color = Color.White) },
+                                    leadingIcon = { Icon(Icons.Default.Category, contentDescription = null, tint = LaserCyan) },
+                                    onClick = {
+                                        showExportMenu = false
+                                        showAddCategoryDialog = true
+                                    }
+                                )
+                                DropdownMenuItem(
                                     text = { Text("Export Products (CSV)", color = Color.White) },
                                     leadingIcon = { Icon(Icons.Default.TableChart, contentDescription = null, tint = LaserCyan) },
                                     onClick = {
@@ -279,6 +294,14 @@ fun MrpCatalogScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    // 3D Animated Node.js Type Interactive Banner
+                    Node3DAnimatedBanner(
+                        totalProducts = rawProducts.size,
+                        totalCategories = categories.size.coerceAtLeast(1)
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // 3D Stat Metrics Card
                     Card3D(
                         modifier = Modifier.fillMaxWidth(),
@@ -293,7 +316,7 @@ fun MrpCatalogScreen(
                             StatPill(
                                 label = "TOTAL ITEMS",
                                 value = rawProducts.size.toString(),
-                                accentColor = LaserCyan
+                                accentColor = NodeLime
                             )
                             StatPill(
                                 label = "CATEGORIES",
@@ -391,25 +414,193 @@ fun MrpCatalogScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // Category Filter Scrollable Chips
+                    // Search Results Scope Selector: All Categories vs Added Categories
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (searchQuery.isNotBlank()) "SEARCH RESULTS IN" else "FILTER BY CATEGORY",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (searchQuery.isNotBlank()) AmberGold else Color(0xFF94A3B8),
+                            letterSpacing = 0.5.sp
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // Scope Toggle: "All Categories" vs "Added Categories"
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkSurfaceBorder)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (selectedCategory == null) LaserCyan else Color.Transparent,
+                                    modifier = Modifier.clickable { viewModel.setSelectedCategory(null) }
+                                ) {
+                                    Text(
+                                        text = "All Categories",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (selectedCategory == null) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selectedCategory == null) Color.Black else Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = if (selectedCategory != null) LaserCyan else Color.Transparent,
+                                    modifier = Modifier.clickable {
+                                        if (selectedCategory == null && categories.isNotEmpty()) {
+                                            viewModel.setSelectedCategory(categories.first())
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (selectedCategory != null) selectedCategory!! else "Added Categories ▾",
+                                        fontSize = 10.sp,
+                                        fontWeight = if (selectedCategory != null) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selectedCategory != null) Color.Black else Color(0xFF94A3B8),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Active Search Scope Banner
+                    if (searchQuery.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33F59E0B)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = AmberGold,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${products.size} product${if (products.size != 1) "s" else ""} found for \"$searchQuery\"",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = if (selectedCategory == null) "Showing search results across all categories" else "Search results set to added category '$selectedCategory'",
+                                        fontSize = 10.sp,
+                                        color = if (selectedCategory == null) Color(0xFF94A3B8) else LaserCyan
+                                    )
+                                }
+
+                                if (selectedCategory != null) {
+                                    TextButton(
+                                        onClick = { viewModel.setSelectedCategory(null) },
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "Show in All",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = AmberGold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Category Filter Scrollable Chips with "+ Add Category" button
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // "+ Add Category" Button Chip
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0F172A),
+                            border = androidx.compose.foundation.BorderStroke(1.2.dp, LaserCyan),
+                            modifier = Modifier.clickable { showAddCategoryDialog = true }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Add Category",
+                                    tint = LaserCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "+ Category",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = LaserCyan
+                                )
+                            }
+                        }
+
+                        // "All Categories" Chip with count
+                        val allMatchingCount = if (searchQuery.isBlank()) {
+                            rawProducts.size
+                        } else {
+                            rawProducts.count { p ->
+                                p.name.contains(searchQuery, ignoreCase = true) ||
+                                p.barcode.contains(searchQuery, ignoreCase = true) ||
+                                p.sku.contains(searchQuery, ignoreCase = true)
+                            }
+                        }
+
                         CategoryChip(
-                            label = "All Products",
+                            label = "All Categories",
+                            count = allMatchingCount,
                             isSelected = selectedCategory == null,
                             onClick = { viewModel.setSelectedCategory(null) }
                         )
+
                         for (cat in categories) {
+                            val catCount = if (searchQuery.isBlank()) {
+                                rawProducts.count { it.category.equals(cat, ignoreCase = true) }
+                            } else {
+                                rawProducts.count { p ->
+                                    p.category.equals(cat, ignoreCase = true) &&
+                                    (p.name.contains(searchQuery, ignoreCase = true) ||
+                                     p.barcode.contains(searchQuery, ignoreCase = true) ||
+                                     p.sku.contains(searchQuery, ignoreCase = true))
+                                }
+                            }
+
                             CategoryChip(
                                 label = cat,
+                                count = catCount,
                                 isSelected = selectedCategory == cat,
-                                onClick = { viewModel.setSelectedCategory(cat) }
+                                onClick = { viewModel.selectCategory(cat) }
                             )
                         }
                     }
@@ -460,7 +651,7 @@ fun MrpCatalogScreen(
                     val productHistories = allHistory.filter { it.productId == product.id }
 
                     Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 7.dp)) {
-                        FlipCard3D(
+                        NodeFlipCard3D(
                             isFlipped = isFlipped,
                             front = {
                                 ProductFrontCard(
@@ -514,9 +705,14 @@ fun MrpCatalogScreen(
 
     if (showAddDialog) {
         AddEditProductDialog(
+            availableCategories = categories,
+            onAddCategory = { newCat ->
+                viewModel.addCategory(newCat)
+            },
             onDismiss = { showAddDialog = false },
             onConfirm = { newProduct ->
                 viewModel.saveProduct(newProduct)
+                Toast.makeText(context, "Product saved! Syncing with Google Sheet...", Toast.LENGTH_SHORT).show()
                 showAddDialog = false
             }
         )
@@ -525,10 +721,29 @@ fun MrpCatalogScreen(
     if (productToEdit != null) {
         AddEditProductDialog(
             productToEdit = productToEdit,
+            availableCategories = categories,
+            onAddCategory = { newCat ->
+                viewModel.addCategory(newCat)
+            },
             onDismiss = { productToEdit = null },
             onConfirm = { updated ->
                 viewModel.saveProduct(updated)
+                Toast.makeText(context, "Product updated! Syncing with Google Sheet...", Toast.LENGTH_SHORT).show()
                 productToEdit = null
+            }
+        )
+    }
+
+    if (showAddCategoryDialog) {
+        AddCategoryDialog(
+            existingCategories = categories,
+            onDismiss = { showAddCategoryDialog = false },
+            onCategoryAdded = { newCat ->
+                val added = viewModel.addCategory(newCat)
+                if (added) {
+                    Toast.makeText(context, "Category '$newCat' created successfully!", Toast.LENGTH_SHORT).show()
+                }
+                showAddCategoryDialog = false
             }
         )
     }
@@ -590,6 +805,7 @@ private fun StatPill(
 @Composable
 private fun CategoryChip(
     label: String,
+    count: Int? = null,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -602,13 +818,32 @@ private fun CategoryChip(
         ),
         modifier = Modifier.clickable { onClick() }
     ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) Color.Black else Color(0xFFCBD5E1),
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.Black else Color(0xFFCBD5E1)
+            )
+            if (count != null) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) Color.Black.copy(alpha = 0.2f) else Color(0xFF0F172A)
+                ) {
+                    Text(
+                        text = count.toString(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isSelected) Color.Black else LaserCyan,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -666,7 +901,17 @@ private fun ProductFrontCard(
                 modifier = Modifier.size(16.dp)
             )
 
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Quick direct Update MRP icon
+            IconButton(onClick = onUpdateMrp, modifier = Modifier.size(28.dp)) {
+                Icon(
+                    Icons.Default.PriceChange,
+                    contentDescription = "Update MRP",
+                    tint = AmberGold,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
 
             IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
                 Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
@@ -772,6 +1017,31 @@ private fun ProductFrontCard(
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
+
+                // Direct Quick Update MRP button inside price badge
+                Button(
+                    onClick = onUpdateMrp,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AmberGold,
+                        contentColor = Color.Black
+                    ),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PriceChange,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Update MRP",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
