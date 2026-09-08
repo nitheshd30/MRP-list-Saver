@@ -1,0 +1,6 @@
+{
+  "name": "MRP Manager",
+  "description": "Product MRP and price update history tracker with barcode scanner, Google Sheets sync, offline mode, and PDF/CSV export for label printing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

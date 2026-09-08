@@ -1,0 +1,92 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- 3D Shadow layer -->
+    <path
+        android:pathData="M38,26 L76,26 C80,26 83,29 83,33 L83,75 C83,79 80,82 76,82 L38,82 C34,82 31,79 31,75 L31,33 C31,29 34,26 38,26 Z"
+        android:fillColor="#35000000" />
+
+    <!-- Main Price Tag / Label Body -->
+    <path
+        android:pathData="M36,24 L74,24 C78,24 81,27 81,31 L81,73 C81,77 78,80 74,80 L36,80 C32,80 29,77 29,73 L29,31 C29,27 32,24 36,24 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="29"
+                android:startY="24"
+                android:endX="81"
+                android:endY="80"
+                android:type="linear">
+                <item android:color="#F59E0B" android:offset="0.0" />
+                <item android:color="#D97706" android:offset="0.5" />
+                <item android:color="#B45309" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Label inner white plate with glossy finish -->
+    <path
+        android:pathData="M34,32 L76,32 C77.5,32 78.5,33 78.5,34.5 L78.5,72 C78.5,73.5 77.5,74.5 76,74.5 L34,74.5 C32.5,74.5 31.5,73.5 31.5,72 L31.5,34.5 C31.5,33 32.5,32 34,32 Z"
+        android:fillColor="#F8FAFC" />
+
+    <!-- Label Hole Eyelet -->
+    <path
+        android:pathData="M55,27.5 m-2.5,0 a2.5,2.5 0 1,0 5,0 a2.5,2.5 0 1,0 -5,0"
+        android:fillColor="#0F172A" />
+
+    <!-- Currency / MRP Badge Header -->
+    <path
+        android:pathData="M35,36 L75,36 L75,46 L35,46 Z"
+        android:fillColor="#1E1B4B" />
+
+    <!-- White text mark MRP representation -->
+    <path
+        android:pathData="M40,39 L42,39 L42,43 L40,43 Z M45,39 L49,39 L49,43 L45,43 Z M52,39 L56,39 L56,43 L52,43 Z M61,39 L69,39 L69,43 L61,43 Z"
+        android:fillColor="#38BDF8" />
+
+    <!-- Price big highlight band -->
+    <path
+        android:pathData="M36,50 L74,50 L74,55 L36,55 Z"
+        android:fillColor="#EF4444" />
+
+    <!-- Barcode Stripes at bottom -->
+    <path
+        android:pathData="M36,59 L38,59 L38,71 L36,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M40,59 L41,59 L41,71 L40,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M43,59 L46,59 L46,71 L43,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M48,59 L49,59 L49,71 L48,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M51,59 L54,59 L54,71 L51,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M56,59 L57,59 L57,71 L56,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M59,59 L62,59 L62,71 L59,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M64,59 L65,59 L65,71 L64,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M67,59 L70,59 L70,71 L67,71 Z"
+        android:fillColor="#0F172A" />
+    <path
+        android:pathData="M72,59 L74,59 L74,71 L72,71 Z"
+        android:fillColor="#0F172A" />
+
+    <!-- 3D Cyan Laser Scan Line across barcode -->
+    <path
+        android:pathData="M27,65 L83,65"
+        android:strokeWidth="2"
+        android:strokeColor="#06B6D4" />
+</vector>
