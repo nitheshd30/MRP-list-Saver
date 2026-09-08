@@ -3,6 +3,7 @@ package com.example.ui.screens
 import android.Manifest
 import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -114,6 +115,10 @@ fun ScannerScreen(
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
+    }
+
+    BackHandler(enabled = scannedProduct != null || scannedBarcode != null) {
+        viewModel.clearScannedResult()
     }
 
     Box(modifier = modifier.fillMaxSize().background(DarkCanvas)) {

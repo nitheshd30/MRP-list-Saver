@@ -15,7 +15,8 @@ class CategoryRepository(
     private val prefs: SharedPreferences =
         context.getSharedPreferences("mrp_categories_prefs", Context.MODE_PRIVATE)
 
-    private val defaultCategories = linkedSetOf(
+    // Known example categories to remove
+    private val exampleCategories = setOf(
         "Grocery",
         "Dairy",
         "Beverages",
@@ -32,16 +33,18 @@ class CategoryRepository(
     private fun loadCategories(): Set<String> {
         val saved = prefs.getStringSet(KEY_CUSTOM_CATEGORIES, null)
         val result = linkedSetOf<String>()
-        result.addAll(defaultCategories)
         if (saved != null) {
-            result.addAll(saved)
+            result.addAll(saved.filter { it.trim().isNotBlank() && it !in exampleCategories })
+            // Clean up persisted preferences so old example categories are purged from disk
+            prefs.edit().putStringSet(KEY_CUSTOM_CATEGORIES, result).apply()
         }
         return result
     }
 
     private fun persistCategories(categories: Set<String>) {
-        prefs.edit().putStringSet(KEY_CUSTOM_CATEGORIES, categories).apply()
-        _customCategories.value = categories
+        val filtered = categories.filter { it.trim().isNotBlank() && it !in exampleCategories }.toSet()
+        prefs.edit().putStringSet(KEY_CUSTOM_CATEGORIES, filtered).apply()
+        _customCategories.value = filtered
     }
 
     val allCategories: Flow<List<String>> = combine(
@@ -49,8 +52,8 @@ class CategoryRepository(
         _customCategories
     ) { dbCategories, customCats ->
         val combined = linkedSetOf<String>()
-        combined.addAll(customCats)
-        combined.addAll(dbCategories.filter { it.isNotBlank() })
+        combined.addAll(customCats.filter { it !in exampleCategories })
+        combined.addAll(dbCategories.filter { it.isNotBlank() && it !in exampleCategories })
         combined.toList().sorted()
     }
 

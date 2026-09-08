@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
@@ -37,8 +38,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,6 +85,26 @@ fun MainAppContainer(
 ) {
     val activeTab by viewModel.activeTab.collectAsState()
     val pendingSyncCount by viewModel.pendingSyncCount.collectAsState()
+
+    // Navigation backstack for screen tabs
+    val tabHistory = remember { mutableStateListOf(0) }
+
+    LaunchedEffect(activeTab) {
+        if (tabHistory.isEmpty() || tabHistory.last() != activeTab) {
+            tabHistory.add(activeTab)
+        }
+    }
+
+    // Intercept back button: go back to previous tab instead of closing app
+    BackHandler(enabled = activeTab != 0 || tabHistory.size > 1) {
+        if (tabHistory.size > 1) {
+            tabHistory.removeAt(tabHistory.lastIndex)
+            val prev = tabHistory.lastOrNull() ?: 0
+            viewModel.setActiveTab(prev)
+        } else {
+            viewModel.setActiveTab(0)
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

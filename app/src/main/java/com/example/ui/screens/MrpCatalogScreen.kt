@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -80,7 +81,6 @@ import com.example.data.model.SyncStatus
 import com.example.ui.components.BarcodeScannerDialog
 import com.example.ui.components.Card3D
 import com.example.ui.components.FlipCard3D
-import com.example.ui.components.Node3DAnimatedBanner
 import com.example.ui.components.NodeFlipCard3D
 import com.example.ui.screens.dialogs.AddCategoryDialog
 import com.example.ui.screens.dialogs.AddEditProductDialog
@@ -140,10 +140,35 @@ fun MrpCatalogScreen(
         )
     }
 
+    // Handle back button inside Catalog screen
+    BackHandler(
+        enabled = showSearchBarcodeScanner ||
+                showAddDialog ||
+                productToEdit != null ||
+                productToUpdateMrp != null ||
+                productToDelete != null ||
+                showAddCategoryDialog ||
+                showExportMenu ||
+                searchQuery.isNotBlank() ||
+                selectedCategory != null
+    ) {
+        when {
+            showSearchBarcodeScanner -> showSearchBarcodeScanner = false
+            showAddDialog -> showAddDialog = false
+            productToEdit != null -> productToEdit = null
+            productToUpdateMrp != null -> productToUpdateMrp = null
+            productToDelete != null -> productToDelete = null
+            showAddCategoryDialog -> showAddCategoryDialog = false
+            showExportMenu -> showExportMenu = false
+            searchQuery.isNotBlank() -> viewModel.setSearchQuery("")
+            selectedCategory != null -> viewModel.setSelectedCategory(null)
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize().background(DarkCanvas)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(bottom = 120.dp)
         ) {
             // Header Section
             item {
@@ -292,35 +317,27 @@ fun MrpCatalogScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                    // 3D Animated Node.js Type Interactive Banner
-                    Node3DAnimatedBanner(
-                        totalProducts = rawProducts.size,
-                        totalCategories = categories.size.coerceAtLeast(1)
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // 3D Stat Metrics Card
+                    // Stat Metrics Card
                     Card3D(
                         modifier = Modifier.fillMaxWidth(),
-                        elevation = 6.dp
+                        elevation = 4.dp
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceAround
                         ) {
                             StatPill(
                                 label = "TOTAL ITEMS",
                                 value = rawProducts.size.toString(),
-                                accentColor = NodeLime
+                                accentColor = LaserCyan
                             )
                             StatPill(
                                 label = "CATEGORIES",
-                                value = (categories.size.coerceAtLeast(1)).toString(),
+                                value = categories.size.toString(),
                                 accentColor = AmberGold
                             )
                             StatPill(
@@ -416,63 +433,30 @@ fun MrpCatalogScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // Search Results Scope Selector: All Categories vs Added Categories
+                    // Category Filter Section Header
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (searchQuery.isNotBlank()) "SEARCH RESULTS IN" else "FILTER BY CATEGORY",
-                            fontSize = 10.sp,
+                            text = if (searchQuery.isNotBlank()) "CATEGORIES (FILTERED)" else "CATEGORIES",
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (searchQuery.isNotBlank()) AmberGold else Color(0xFF94A3B8),
                             letterSpacing = 0.5.sp
                         )
 
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        // Scope Toggle: "All Categories" vs "Added Categories"
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFF0F172A),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, DarkSurfaceBorder)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (selectedCategory == null) LaserCyan else Color.Transparent,
-                                    modifier = Modifier.clickable { viewModel.setSelectedCategory(null) }
-                                ) {
-                                    Text(
-                                        text = "All Categories",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (selectedCategory == null) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selectedCategory == null) Color.Black else Color(0xFF94A3B8),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = if (selectedCategory != null) LaserCyan else Color.Transparent,
-                                    modifier = Modifier.clickable {
-                                        if (selectedCategory == null && categories.isNotEmpty()) {
-                                            viewModel.setSelectedCategory(categories.first())
-                                        }
-                                    }
-                                ) {
-                                    Text(
-                                        text = if (selectedCategory != null) selectedCategory!! else "Added Categories ▾",
-                                        fontSize = 10.sp,
-                                        fontWeight = if (selectedCategory != null) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selectedCategory != null) Color.Black else Color(0xFF94A3B8),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
+                        if (selectedCategory != null) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(
+                                text = "Show All",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = LaserCyan,
+                                modifier = Modifier
+                                    .clickable { viewModel.setSelectedCategory(null) }
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
                         }
                     }
 
@@ -558,7 +542,7 @@ fun MrpCatalogScreen(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "+ Category",
+                                    text = "Add Category",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = LaserCyan

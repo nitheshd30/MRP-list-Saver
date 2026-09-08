@@ -103,9 +103,6 @@ fun AddEditProductDialog(
         val set = linkedSetOf<String>()
         if (category.isNotBlank()) set.add(category)
         set.addAll(availableCategories)
-        if (set.isEmpty()) {
-            set.addAll(listOf("Grocery", "Dairy", "Beverages", "Snacks", "Bakery", "Personal Care", "Household", "General"))
-        }
         set.toList()
     }
 
